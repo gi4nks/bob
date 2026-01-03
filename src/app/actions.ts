@@ -16,57 +16,147 @@ import { DeveloperWithSkills, Project, Allocation, Leave, Phase, RequiredSkill, 
 
 // --- Initial Load ---
 
-export async function getInitialData() {
+// --- Data Fetching ---
 
-  const devsWithSkills = await prisma.developer.findMany({
-
-    include: { skills: true, tags: true }
-
-  });
-
-
-
-  const projects = await prisma.project.findMany({
-
-    include: { 
-
-      requirements: true, 
-
-      phases: {
-
-        include: { outcomes: { include: { assignee: true } } }
-
-      }, 
-
-      tags: true
-
-    }
-
-  });
-
-  const allocations = await prisma.allocation.findMany();
-
-  const leaves = await prisma.leave.findMany();
-
-  const tags = await prisma.tag.findMany();
-
-
-
-  return {
-
-    developers: devsWithSkills as unknown as DeveloperWithSkills[], // Prisma types align mostly, explicit cast for safety
-
-    projects: projects as unknown as Project[],
-
-    allocations: allocations as unknown as Allocation[],
-
-    leaves: leaves as unknown as Leave[],
-
-    tags: tags as unknown as Tag[]
-
-  };
-
+function safeAllocationStatus(status: string): "Confirmed" | "Draft" {
+  return (status === "Confirmed" || status === "Draft") ? status : "Confirmed";
 }
+
+function safeLeaveType(type: string): "Vacation" | "Sick Leave" | "Public Holiday" | "Other" {
+  const validTypes = ["Vacation", "Sick Leave", "Public Holiday", "Other"];
+  return validTypes.includes(type) ? (type as any) : "Other";
+}
+
+export async function getDevelopers(): Promise<DeveloperWithSkills[]> {
+  const devs = await prisma.developer.findMany({
+    include: { skills: true, tags: true }
+  });
+  return devs.map(d => ({
+    id: d.id,
+    name: d.name,
+    role: d.role,
+    avatarUrl: d.avatarUrl,
+    capacity: d.capacity,
+    dailyRate: d.dailyRate,
+    isPlaceholder: d.isPlaceholder,
+    tags: d.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
+    skills: d.skills.map(s => ({
+      name: s.name,
+      level: s.level,
+      category: s.category
+    }))
+  }));
+}
+
+export async function getProjects(): Promise<Project[]> {
+  const projects = await prisma.project.findMany({
+    include: { 
+      requirements: true, 
+      phases: {
+        include: { 
+          outcomes: { 
+            include: { 
+              assignee: {
+                include: { tags: true }
+              } 
+            } 
+          },
+          requirements: true 
+        }
+      }, 
+      tags: true
+    }
+  });
+
+  return projects.map(p => ({
+    id: p.id,
+    name: p.name,
+    client: p.client,
+    color: p.color,
+    status: p.status,
+    budget: p.budget,
+    startDate: p.startDate ? p.startDate : undefined,
+    endDate: p.endDate ? p.endDate : undefined,
+    tags: p.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
+    requirements: p.requirements.map(r => ({
+      id: r.id,
+      projectId: r.projectId,
+      phaseId: r.phaseId,
+      name: r.name,
+      level: r.level
+    })),
+    phases: p.phases.map(ph => ({
+      id: ph.id,
+      projectId: ph.projectId,
+      name: ph.name,
+      startDate: ph.startDate,
+      endDate: ph.endDate,
+      color: ph.color,
+      requirements: ph.requirements.map(pr => ({
+        id: pr.id,
+        projectId: pr.projectId,
+        phaseId: pr.phaseId,
+        name: pr.name,
+        level: pr.level
+      })),
+      outcomes: ph.outcomes.map(o => ({
+        id: o.id,
+        name: o.name,
+        description: o.description,
+        isDone: o.isDone,
+        order: o.order,
+        phaseId: o.phaseId,
+        assigneeId: o.assigneeId,
+        assignee: o.assignee ? {
+          id: o.assignee.id,
+          name: o.assignee.name,
+          role: o.assignee.role,
+          avatarUrl: o.assignee.avatarUrl,
+          capacity: o.assignee.capacity,
+          dailyRate: o.assignee.dailyRate,
+          isPlaceholder: o.assignee.isPlaceholder,
+          tags: o.assignee.tags.map(t => ({ id: t.id, name: t.name, color: t.color }))
+        } : null
+      }))
+    }))
+  }));
+}
+
+export async function getAllocations(): Promise<Allocation[]> {
+  const allocations = await prisma.allocation.findMany();
+  return allocations.map(a => ({
+    id: a.id,
+    developerId: a.developerId,
+    projectId: a.projectId,
+    startDate: a.startDate,
+    endDate: a.endDate,
+    load: a.load,
+    status: safeAllocationStatus(a.status)
+  }));
+}
+
+export async function getLeaves(): Promise<Leave[]> {
+  const leaves = await prisma.leave.findMany();
+  return leaves.map(l => ({
+    id: l.id,
+    developerId: l.developerId,
+    startDate: l.startDate,
+    endDate: l.endDate,
+    type: safeLeaveType(l.type),
+    hours: l.hours || undefined
+  }));
+}
+
+export async function getTags(): Promise<Tag[]> {
+  const tags = await prisma.tag.findMany();
+  return tags.map(t => ({
+    id: t.id,
+    name: t.name,
+    color: t.color
+  }));
+}
+
+// ...
 
 
 
@@ -425,29 +515,70 @@ export async function deleteRequirementAction(id: string) {
 }
 
 
+import { calculateSplits } from '@/lib/logic/allocationLogic';
+
+// ...
+
 // --- Bulk Resolution (Atomic Operations) ---
 export async function bulkResolveAction(params: {
   toDelete: string[];
   toCreate: Allocation[];
   toUpdate?: Allocation[];
+  leaves?: {
+    toDelete?: string[];
+    toCreate?: Leave[];
+    toUpdate?: Leave[];
+  };
 }) {
   const validatedDelete = z.array(z.string()).parse(params.toDelete);
-  const validatedCreate = z.array(AllocationSchema).parse(params.toCreate);
+  // We process creates/updates to handle splits, so we parse but don't finalize yet
+  let allocsToCreate = z.array(AllocationSchema).parse(params.toCreate);
   const validatedUpdate = z.array(AllocationSchema).parse(params.toUpdate || []);
 
+  const leavesDelete = z.array(z.string()).parse(params.leaves?.toDelete || []);
+  const leavesCreate = z.array(LeaveSchema).parse(params.leaves?.toCreate || []);
+  const leavesUpdate = z.array(LeaveSchema).parse(params.leaves?.toUpdate || []);
+
+  // Fetch current state
+  const existingLeaves = await prisma.leave.findMany();
+  const existingAllocs = await prisma.allocation.findMany();
+
+  // Prepare active leaves list (existing - deleted + created + updated)
+  const activeLeaves = existingLeaves
+    .filter(l => !leavesDelete.includes(l.id))
+    .map(l => ({ ...l, type: l.type as any, hours: l.hours || undefined })); // cast for type match
+  
+  leavesCreate.forEach(l => activeLeaves.push({ ...l, hours: l.hours || undefined }));
+  leavesUpdate.forEach(l => {
+    const idx = activeLeaves.findIndex(al => al.id === l.id);
+    const updated = { ...l, hours: l.hours || undefined };
+    if (idx !== -1) activeLeaves[idx] = updated;
+    else activeLeaves.push(updated);
+  });
+
+  const leavesToCreateOrUpdate = [...leavesCreate, ...leavesUpdate].map(l => ({ ...l, hours: l.hours || undefined }));
+  const existingAllocsMapped = existingAllocs.map(a => ({...a, status: a.status as "Confirmed" | "Draft"}));
+
+  // Calculate splits
+  const { toCreate: finalAllocsToCreate, toDelete: finalAllocsToDelete } = calculateSplits({
+    allocsToCreate,
+    activeLeaves,
+    existingAllocs: existingAllocsMapped,
+    allocsToDelete: validatedDelete,
+    leavesToCreateOrUpdate
+  });
+
   await prisma.$transaction(async (tx) => {
-    // 1. Delete marked allocations
-    if (validatedDelete.length > 0) {
+    // 1. Allocations: Delete
+    if (finalAllocsToDelete.length > 0) {
       await tx.allocation.deleteMany({
-        where: { id: { in: validatedDelete } }
+        where: { id: { in: finalAllocsToDelete } }
       });
     }
 
-    // 2. Create new allocation segments
-    if (validatedCreate.length > 0) {
-      // Prisma doesn't have createMany with specific IDs in a way that handles all SQLite nuances easily,
-      // so we use a loop within the transaction for robustness since these are usually small counts.
-      for (const alloc of validatedCreate) {
+    // 2. Allocations: Create
+    if (finalAllocsToCreate.length > 0) {
+      for (const alloc of finalAllocsToCreate) {
         await tx.allocation.create({
           data: {
             id: alloc.id,
@@ -461,8 +592,9 @@ export async function bulkResolveAction(params: {
         });
       }
     }
-
-    // 3. Update existing segments if any
+    
+    // ... (rest of transaction remains same)
+    // 3. Allocations: Update
     for (const alloc of validatedUpdate) {
       await tx.allocation.update({
         where: { id: alloc.id },
@@ -473,6 +605,41 @@ export async function bulkResolveAction(params: {
           endDate: alloc.endDate,
           load: alloc.load,
           status: alloc.status
+        }
+      });
+    }
+
+    // 4. Leaves: Delete
+    if (leavesDelete.length > 0) {
+      await tx.leave.deleteMany({
+        where: { id: { in: leavesDelete } }
+      });
+    }
+
+    // 5. Leaves: Create
+    for (const leave of leavesCreate) {
+      await tx.leave.create({
+        data: {
+          id: leave.id,
+          developerId: leave.developerId,
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          type: leave.type,
+          hours: leave.hours
+        }
+      });
+    }
+
+    // 6. Leaves: Update
+    for (const leave of leavesUpdate) {
+      await tx.leave.update({
+        where: { id: leave.id },
+        data: {
+          developerId: leave.developerId,
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          type: leave.type,
+          hours: leave.hours
         }
       });
     }

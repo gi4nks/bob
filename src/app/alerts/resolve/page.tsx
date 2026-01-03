@@ -171,8 +171,8 @@ function ResolveConflictContent() {
         return {
           title: `Reassign to ${alt.name}`,
           description: `Bob found an available expert (${alt.role}) who can take over ${getProject(targetAlloc.projectId)?.name} during this period.`,
-          action: () => {
-            bulkResolve({ 
+          action: async () => {
+            await bulkResolve({ 
               toDelete: [], 
               toCreate: [], 
               toUpdate: [{ ...targetAlloc, developerId: alt.id }] 

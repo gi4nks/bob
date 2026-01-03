@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useAppStore } from "@/lib/store";
 import { detectConflicts } from "@/lib/conflictUtils";
 import { AlertTriangle, CheckCircle2, Wrench, ArrowRight, ShieldAlert, Calendar } from "lucide-react";
@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/dateUtils";
 export default function AlertsPage() {
   const { developers, allocations, projects, leaves } = useAppStore();
   
-  const conflicts = detectConflicts(developers, allocations, leaves, projects);
+  const conflicts = useMemo(() => detectConflicts(developers, allocations, leaves, projects), [developers, allocations, leaves, projects]);
 
   const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || "Unknown Project";
 

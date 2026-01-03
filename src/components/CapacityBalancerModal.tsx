@@ -14,7 +14,7 @@ interface CapacityBalancerModalProps {
 }
 
 const CapacityBalancerModal = ({ isOpen, onClose, developer, targetAllocations, periodLabel }: CapacityBalancerModalProps) => {
-  const { projects, updateAllocation } = useAppStore();
+  const { projects, bulkResolve } = useAppStore();
   const [localLoads, setLocalLoads] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -35,13 +35,19 @@ const CapacityBalancerModal = ({ isOpen, onClose, developer, targetAllocations, 
     setLocalLoads(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
+    const toUpdate: Allocation[] = [];
+    
     targetAllocations.forEach(alloc => {
       const newLoad = localLoads[alloc.id];
       if (newLoad !== undefined && newLoad !== alloc.load) {
-        updateAllocation({ ...alloc, load: newLoad });
+        toUpdate.push({ ...alloc, load: newLoad });
       }
     });
+
+    if (toUpdate.length > 0) {
+      await bulkResolve({ toDelete: [], toCreate: [], toUpdate });
+    }
     onClose();
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAppStore } from "@/lib/store";
 import Link from "next/link";
 import { 
@@ -24,7 +24,7 @@ import {
   Hash, 
   Box
 } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { isOverlapping, formatDate } from "@/lib/dateUtils";
 import NewAllocationModal from "@/components/NewAllocationModal";
 import NewPhaseModal from "@/components/NewPhaseModal";
@@ -32,8 +32,8 @@ import NewRequirementModal from "@/components/NewRequirementModal";
 import NewOutcomeModal from "@/components/NewOutcomeModal";
 import { Allocation, Phase, RequiredSkill, Outcome } from "@/types";
 
-export default function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ProjectDetailsPage() {
+  const { id } = useParams() as { id: string };
   const { 
     projects, allocations, developers, leaves, 
     deleteAllocation, addAllocation, deletePhase, deleteRequirement,
@@ -75,8 +75,20 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   const selectedPhase = project.phases?.find(p => p.id === selectedPhaseId);
 
   // Initial Filtering State
-  const [filterStart, setFilterStart] = useState("2026-01-01");
-  const [filterEnd, setFilterEnd] = useState("2026-01-31");
+  const [filterStart, setFilterStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-01-01`;
+  });
+  const [filterEnd, setFilterEnd] = useState(() => {
+    const now = new Date();
+    // Default to end of current month or year depending on preference, sticking to user's pattern
+    // The previous was 2026-01-31 (1 month window). 
+    // Let's default to a 3-month window or end of current month?
+    // User had 2026-01-01 to 2026-01-31. 
+    // Let's do current month window.
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return formatDate(endOfMonth);
+  });
   const [scheduleView, setScheduleView] = useState<"weeks" | "months">("weeks");
 
   const allProjectAllocations = allocations.filter((a) => a.projectId === project.id);
@@ -93,7 +105,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
         setScheduleView("months");
       }
     }
-  }, [id]);
+  }, [id, allProjectAllocations]);
 
   const filteredAllocations = allProjectAllocations.filter(a => isOverlapping(a.startDate, a.endDate, filterStart, filterEnd));
   const activeDeveloperIds = Array.from(new Set(filteredAllocations.map((a) => a.developerId)));

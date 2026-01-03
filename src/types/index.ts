@@ -41,7 +41,7 @@ export interface Outcome {
   description?: string | null;
   isDone: boolean;
   order: number;
-  phaseId: string;
+  phaseId: string | null;
   assigneeId?: string | null;
   assignee?: Developer | null;
 }

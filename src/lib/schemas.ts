@@ -30,7 +30,7 @@ export const OutcomeSchema = z.object({
   description: z.string().optional().nullable(),
   isDone: z.boolean().default(false),
   order: z.number().int().default(0),
-  phaseId: z.string().min(1),
+  phaseId: z.string().min(1).optional().nullable(),
   assigneeId: z.string().optional().nullable(),
 });
 

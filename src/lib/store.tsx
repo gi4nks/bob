@@ -1,14 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, ReactNode, useMemo } from "react";
 import { DeveloperWithSkills, Project, Allocation, Leave, Phase, RequiredSkill, Tag, Outcome } from "@/types";
 import { 
   useAppData, 
-  useDevelopers, 
-  useProjects, 
-  useAllocations, 
-  useLeaves,
-  useTags,
   useAddDeveloper,
   useUpdateDeveloper,
   useDeleteDeveloper,
@@ -41,6 +36,8 @@ interface AppContextType {
   allocations: Allocation[];
   leaves: Leave[];
   tags: Tag[];
+  isLoading: boolean;
+  isError: boolean;
   addDeveloper: (developer: DeveloperWithSkills) => void;
   updateDeveloper: (developer: DeveloperWithSkills) => void;
   deleteDeveloper: (id: string) => void;
@@ -58,7 +55,16 @@ interface AppContextType {
   deletePhase: (id: string, projectId: string) => void;
   addRequirement: (req: RequiredSkill) => void;
   deleteRequirement: (id: string, projectId: string) => void;
-  bulkResolve: (params: { toDelete: string[], toCreate: Allocation[], toUpdate?: Allocation[] }) => Promise<void>;
+  bulkResolve: (params: { 
+    toDelete: string[]; 
+    toCreate: Allocation[]; 
+    toUpdate?: Allocation[];
+    leaves?: {
+      toDelete?: string[];
+      toCreate?: Leave[];
+      toUpdate?: Leave[];
+    };
+  }) => Promise<void>;
   addTag: (tag: Tag) => void;
   updateTag: (tag: Tag) => void;
   deleteTag: (id: string) => void;
@@ -70,13 +76,13 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const { isLoading, isError } = useAppData();
+  const { isLoading, isError, data } = useAppData();
   
-  const developers = useDevelopers();
-  const projects = useProjects();
-  const allocations = useAllocations();
-  const leaves = useLeaves();
-  const tags = useTags();
+  const developers = data?.developers || [];
+  const projects = data?.projects || [];
+  const allocations = data?.allocations || [];
+  const leaves = data?.leaves || [];
+  const tags = data?.tags || [];
 
   const addDeveloperMutation = useAddDeveloper();
   const updateDeveloperMutation = useUpdateDeveloper();
@@ -110,13 +116,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const updateOutcomeMutation = useUpdateOutcome();
   const deleteOutcomeMutation = useDeleteOutcome();
 
-  if (isLoading) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-base-100">
-            <span className="loading loading-spinner loading-lg text-primary"></span>
-        </div>
-    );
-  }
+  const value = useMemo(() => ({
+    developers,
+    projects,
+    allocations,
+    leaves,
+    tags,
+    isLoading, // Expose loading state
+    isError,   // Expose error state
+    addDeveloper: (dev: DeveloperWithSkills) => addDeveloperMutation.mutate(dev),
+    updateDeveloper: (dev: DeveloperWithSkills) => updateDeveloperMutation.mutate(dev),
+    deleteDeveloper: (id: string) => deleteDeveloperMutation.mutate(id),
+    addProject: (proj: Project) => addProjectMutation.mutate(proj),
+    updateProject: (proj: Project) => updateProjectMutation.mutate(proj),
+    deleteProject: (id: string) => deleteProjectMutation.mutate(id),
+    addAllocation: (alloc: Allocation) => addAllocationMutation.mutate(alloc),
+    updateAllocation: (alloc: Allocation) => updateAllocationMutation.mutate(alloc),
+    deleteAllocation: (id: string) => deleteAllocationMutation.mutate(id),
+    addLeave: (leave: Leave) => addLeaveMutation.mutate(leave),
+    updateLeave: (leave: Leave) => updateLeaveMutation.mutate(leave),
+    deleteLeave: (id: string) => deleteLeaveMutation.mutate(id),
+    addPhase: (phase: Phase) => addPhaseMutation.mutate(phase),
+    updatePhase: (phase: Phase) => updatePhaseMutation.mutate(phase),
+    deletePhase: (id: string, projectId: string) => deletePhaseMutation.mutate({ id, projectId }),
+    addRequirement: (req: RequiredSkill) => addReqMutation.mutate(req),
+    deleteRequirement: (id: string, projectId: string) => deleteReqMutation.mutate({ id, projectId }),
+    bulkResolve: async (params: any) => { await bulkResolveMutation.mutateAsync(params); },
+    addTag: (tag: Tag) => addTagMutation.mutate(tag),
+    updateTag: (tag: Tag) => updateTagMutation.mutate(tag),
+    deleteTag: (id: string) => deleteTagMutation.mutate(id),
+    addOutcome: (outcome: Outcome) => addOutcomeMutation.mutate(outcome),
+    updateOutcome: (outcome: Outcome) => updateOutcomeMutation.mutate(outcome),
+    deleteOutcome: (id: string) => deleteOutcomeMutation.mutate(id),
+  }), [
+    developers, projects, allocations, leaves, tags, isLoading, isError,
+    addDeveloperMutation, updateDeveloperMutation, deleteDeveloperMutation,
+    addProjectMutation, updateProjectMutation, deleteProjectMutation,
+    addAllocationMutation, updateAllocationMutation, deleteAllocationMutation,
+    addLeaveMutation, updateLeaveMutation, deleteLeaveMutation,
+    addPhaseMutation, updatePhaseMutation, deletePhaseMutation,
+    addReqMutation, deleteReqMutation, bulkResolveMutation,
+    addTagMutation, updateTagMutation, deleteTagMutation,
+    addOutcomeMutation, updateOutcomeMutation, deleteOutcomeMutation
+  ]);
 
   if (isError) {
     return (
@@ -128,39 +170,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AppContext.Provider
-      value={{
-        developers,
-        projects,
-        allocations,
-        leaves,
-        tags,
-        addDeveloper: (dev) => addDeveloperMutation.mutate(dev),
-        updateDeveloper: (dev) => updateDeveloperMutation.mutate(dev),
-        deleteDeveloper: (id) => deleteDeveloperMutation.mutate(id),
-        addProject: (proj) => addProjectMutation.mutate(proj),
-        updateProject: (proj) => updateProjectMutation.mutate(proj),
-        deleteProject: (id) => deleteProjectMutation.mutate(id),
-        addAllocation: (alloc) => addAllocationMutation.mutate(alloc),
-        updateAllocation: (alloc) => updateAllocationMutation.mutate(alloc),
-        deleteAllocation: (id) => deleteAllocationMutation.mutate(id),
-        addLeave: (leave) => addLeaveMutation.mutate(leave),
-        updateLeave: (leave) => updateLeaveMutation.mutate(leave),
-        deleteLeave: (id) => deleteLeaveMutation.mutate(id),
-        addPhase: (phase) => addPhaseMutation.mutate(phase),
-        updatePhase: (phase) => updatePhaseMutation.mutate(phase),
-        deletePhase: (id, projectId) => deletePhaseMutation.mutate({ id, projectId }),
-        addRequirement: (req) => addReqMutation.mutate(req),
-        deleteRequirement: (id, projectId) => deleteReqMutation.mutate({ id, projectId }),
-        bulkResolve: async (params) => { await bulkResolveMutation.mutateAsync(params); },
-        addTag: (tag) => addTagMutation.mutate(tag),
-        updateTag: (tag) => updateTagMutation.mutate(tag),
-        deleteTag: (id) => deleteTagMutation.mutate(id),
-        addOutcome: (outcome) => addOutcomeMutation.mutate(outcome),
-        updateOutcome: (outcome) => updateOutcomeMutation.mutate(outcome),
-        deleteOutcome: (id) => deleteOutcomeMutation.mutate(id),
-      }}
-    >
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );
