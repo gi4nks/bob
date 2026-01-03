@@ -1,0 +1,16 @@
+services:
+  bob:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bob-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/bob.db
+    restart: unless-stopped
+
+volumes:
+  data:
