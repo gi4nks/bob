@@ -1,51 +1,51 @@
 # Bob - Resource Builder
 
-Bob is a high-performance resource management and planning application designed for engineering teams. It provides deep visibility into team capacity, project allocations, financials, and strategic skill mapping.
+Bob is a high-performance resource management and planning application designed for engineering teams. It provides deep visibility into team capacity, project allocations, financials, and strategic skill mapping through a high-density, modern interface.
 
 ## 🚀 Key Features
 
 ### 📅 Timeline Dashboard
 - **Vertical Alignment**: Projects and leaves are strictly slotted into rows for perfect horizontal tracking across weeks.
-- **Visual Clarity**: Alphabetical sorting of projects and clear percentage indicators.
+- **Visual Clarity**: Alphabetical sorting of projects and clear intensity indicators.
 - **What-If Mode**: Toggle to show/hide "Draft" allocations for scenario planning without affecting confirmed schedules.
 
-### 👤 Resource Management (Mission Control)
+### 👤 Resource 360 (Mission Control)
 - **Unified 360 View**: Every project allocation and leave segment for an individual engineer in one place.
+- **Visual Intensity**: Load-based progress bars and status indicators (Free/Busy/Overloaded).
 - **Financial Impact**: Real-time calculation of an engineer's cost to the portfolio based on their `dailyRate`.
 - **Performance Retro**: Historical 6-month analysis of workload and project engagement.
-- **Smart CRUD**: Direct inline editing, deletion, and splitting of allocations.
 
 ### 🌴 Leave Management
 - **Scalable Interface**: Grouped by Month/Year to handle large teams and long histories.
-- **Advanced Filtering**: Status tabs (Active, Upcoming, History) and real-time search.
-- **Partial-Day Support**: Book leave in hours (e.g., 4h) or full days.
+- **Status Tracking**: Visual badges for Active, Upcoming, and Past leaves.
+- **Partial-Day Support**: Book leave in hours or full days.
 
 ### 🛠️ Conflict Resolution Center
-- **Bob's Recommendation Engine**: Analyzes issues and proposes one-click fixes.
-- **Auto-Balance**: Proportionally scales allocations to fit a developer's capacity.
-- **Intelligent Reassignment**: Suggests alternative available engineers for conflicting projects.
+- **Smart Detection**: Instantly identifies capacity overloads and leave overlaps.
+- **High-Density Overview**: Compact list view for managing large volumes of alerts.
+- **One-Click Fixes**: Heuristic recommendations to balance developer capacity.
 
 ### 📊 Utilization Center (Analytics)
-- **Utilization Forecast**: Month-by-month heatmap of team capacity vs. committed load.
-- **Workforce Stats**: Detailed tracking of worked days, sick leave, and vacations.
-- **Bench & Off-boarding**: Specific views for unallocated resources and imminent project roll-offs.
+- **Executive Metrics**: Bench waste, delivery velocity, team seniority, and initiative counts.
+- **Utilization Forecast**: 6-month heatmap of team capacity vs. committed load.
+- **Bench & Off-boarding**: Proactive views for unallocated resources and imminent project roll-offs.
 
 ### 💰 Project Financials
-- **Budget Tracking**: Define project budgets and monitor real-time utilization.
-- **Burn Rate Analysis**: Provides monthly spend estimates for each project and the entire portfolio.
-- **Financial Alerts**: Visual indicators when committed costs approach or exceed project budgets.
+- **Budget Tracking**: Real-time monitoring of budget consumption and headroom.
+- **Burn Rate Analysis**: Monthly spend estimates per project and across the entire portfolio.
+- **Project Inspector**: Detailed drill-down into cost centers and monthly trends.
 
-### 🏗️ Project & Roadmap Management
-- **Project Phases**: Divide projects into custom phases (Discovery, Build, etc.) and visualize them directly on the Gantt chart.
-- **Skills Gap Analysis**: Define expertise requirements per project/phase. The gap report highlights critical shortages and hiring needs.
-- **High-Density Squad View**: Searchable engineer grids for managing large teams.
+### 🏗️ Roadmap & Skills Gap
+- **Roadmap Cockpit**: Compact, horizontal phase navigation with integrated outcome tracking.
+- **Skills Gap Analysis**: Technical capability audit vs. project requirements.
+- **Strategic Insights**: AI-powered assessment of hiring or upskilling needs.
 
-### ✨ Smart Match 2.0
-- **Project Aware**: Automatically populates search criteria based on project phase dates and technical requirements.
+### ✨ Smart Match Engine
 - **Heuristic Scoring**: Ranks candidates based on a weighted mix of availability and technical proficiency.
+- **Project Aware**: Automatically populates criteria based on project phase dates and requirements.
 
 ## 🛠 Tech Stack
-- **Frontend**: Next.js 15 (App Router), React, Tailwind CSS, daisyUI.
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS 4, daisyUI 5.
 - **Icons**: Lucide React.
 - **Database**: SQLite with Prisma ORM.
 - **State Management**: Context-based store with Server Actions for persistence.
@@ -57,7 +57,7 @@ docker-compose up -d --build
 The database is stored in the `./data` directory on the host machine for persistent storage.
 
 ## 🧪 Testing & Data
-- **Populate Database**: `make feed` - Wipes and populates the DB with 16 engineers, 7 projects, and complex requirements.
+- **Populate Database**: `make feed` - Wipes and populates the DB with a comprehensive, realistic dataset.
 - **Wipe Database**: `make db-clean` - Resets the database to an empty state.
 
 ## 🏷️ Version Management
